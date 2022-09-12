@@ -1,0 +1,104 @@
+{{ define "content" }}
+
+<div>
+  Counter <span class="count"></span>
+  <br />
+  <button id="add">Add</button>
+  <button id="sub">Sub</button>
+</div>
+
+<div>
+  <input type="text" name="from" placeholder="from" />
+  <br />
+  <input type="text" name="message" placeholder="message" />
+  <button type="submit" name="submit" id="send">Sent</button>
+
+  <div class="chats"></div>
+</div>
+
+<script>
+  const baseVoteURL = "http://localhost:3030/api/vote";
+
+  $(document).ready(function () {
+    $.get("/api/vote?action=data", function (data) {
+      $(".count").text(data.count);
+    });
+
+    $.get("/api/chat", function (data) {
+      const chats = data.chats;
+      chats.map((chat) => {
+        let output = `<div>${chat.from} = ${chat.message}</div>`;
+        $(".chats").append(output);
+      });
+    });
+
+    var client = golongpoll.newClient({
+      subscribeUrl: "/api/vote/events",
+      category: "from-counter",
+      publishUrl: "/api/vote/send",
+      loggingEnabled: true,
+      onEvent: function (event) {
+        console.log("Received event: " + event.data);
+        $(".count").text(event.data);
+      },
+    });
+
+    if (!client) {
+      alert("Failed to create golongpoll client.");
+    } else {
+      console.log(client);
+    }
+
+    var client2 = golongpoll.newClient({
+      subscribeUrl: "/api/chat/events",
+      category: "from-chat",
+      publishUrl: "/api/chat/send",
+      loggingEnabled: true,
+      onEvent: function (event) {
+        let output = `<div>${event.data[0]} = ${event.data[1]}</div>`;
+        $(".chats").append(output);
+      },
+    });
+
+    if (!client2) {
+      alert("Failed to create golongpoll client.");
+    } else {
+      console.log(client2);
+    }
+
+    $("#send").click(function (e) {
+      console.log($("input[name=from]").val());
+      console.log($("input[name=message]").val());
+
+      const data =
+        $("input[name=from]").val() + " = " + $("input[name=message]").val();
+      client2.publish("to-chat", data);
+    });
+
+    $("#add").click(function () {
+      // $.get(baseVoteURL + "?action=add", function (data) {
+      //   $(".counter").text(data.count);
+      // });
+
+      // publish
+      client.publish("to-counter", "add", function (status, resp) {
+        console.log(status);
+        console.log(resp);
+      });
+    });
+
+    $("#sub").click(function () {
+      // $.get(baseVoteURL + "?action=sub", function (data) {
+      //   $(".counter").text(data.count);
+      // });
+
+      // publish
+      client.publish("to-counter", "sub", function (status, resp) {
+        console.log(status);
+        console.log(resp);
+      });
+    });
+  });
+</script>
+
+{{ end }}
